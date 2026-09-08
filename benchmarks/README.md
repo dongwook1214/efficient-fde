@@ -52,13 +52,19 @@ i.e. the grinding-aware condition `q_S ((beta+1)/2beta)^R <= 2^-128` with
 | `beta` | 1.1 | 1.25 | 1.5 | 2 |
 | --- | --- | --- | --- | --- |
 | `R` | 2384 | 1053 | 609 | 386 |
-| measured for | **ours only** | all | all | all |
+| measured for | all but VECK+ | all | all | all |
 
-`beta = 1.1` is the low-redundancy regime the baselines' per-sample cost keeps
-them out of, which is the point the comparison makes, so only our scheme is run
-there — in the Rust driver by
-`config::OURS_ONLY_SUBSET_SIZES`, in the Go drivers by there being no `r2384`
-build tag under `baselines/veck-star-snark`.
+`beta = 1.1` is the low-redundancy regime; reaching it costs 2384 samples.
+Everything is measured there except VECK+, which range-proves every sampled
+shard — 19,072 range proofs per exchange, tens of seconds of verifier time, far
+outside the regime that scheme is built for.  The exclusion lives in
+`Scheme::measures_subset_size`, and `config::VECK_PLUS_SKIPPED_SUBSET_SIZES` is
+what it reads.
+
+VECK\* at `R = 2384` is affordable on the KZG side but expensive in the SNARK:
+9,573,767 constraints, against 477,830 for ours.  Groth16 setup there needs tens
+of minutes and a multi-gigabyte proving key, so `-compile-only` is available if
+only the constraint count is wanted.
 
 `--subsets` overrides the list and `--grinding 0` drops the grinding margin.
 Because `f_S` has degree `R + 1` once blinded, a row is skipped unless

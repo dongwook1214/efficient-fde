@@ -59,10 +59,6 @@ if [ "${SKIP_SNARK:-0}" != "1" ]; then
   rm -f "$SNARK_CSV"
   for tag in ${SUBSETS//,/ }; do
     for dir in "$ROOT/PFDE-SNARK/bls12-381" "$ROOT/PFDE-SNARK/bw6-761" "$ROOT/baselines/veck-star-snark"; do
-      # beta = 1.1 (R = 2384) is measured for our scheme only.
-      if [ "$tag" = "2384" ] && [ "$dir" = "$ROOT/baselines/veck-star-snark" ]; then
-        continue
-      fi
       echo "--- $(basename "$(dirname "$dir")")/$(basename "$dir") at R=$tag"
       (cd "$dir" && go run -tags "r$tag" . -csv "$SNARK_CSV")
     done

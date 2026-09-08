@@ -206,12 +206,9 @@ where
                 // `f_S` has degree `R + 1` once blinded, so the quotient against
                 // `Z_S` is only non-trivial while `deg phi = ell - 1` exceeds it.
                 .filter(|&r| r + 2 < ell)
-                // The lowest-redundancy point is ours alone; see
-                // `config::OURS_ONLY_SUBSET_SIZES`.
-                .filter(|r| {
-                    cfg.scheme == Scheme::Ours
-                        || !crate::config::OURS_ONLY_SUBSET_SIZES.contains(r)
-                })
+                // VECK+ skips the lowest-redundancy point; see
+                // `config::VECK_PLUS_SKIPPED_SUBSET_SIZES`.
+                .filter(|&r| cfg.scheme.measures_subset_size(r))
                 .collect()
         } else {
             // Base VECK neither codes nor samples; `R = 0` records that.

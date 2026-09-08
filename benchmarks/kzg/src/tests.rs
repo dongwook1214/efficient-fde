@@ -344,10 +344,15 @@ fn the_default_sample_counts_hit_the_intended_redundancies() {
         assert!(coarser > target, "R={} already reaches beta={target}", r - 1);
     }
 
-    // Every ours-only count must be one of the defaults, or the filter in
-    // `schemes::run` would silently drop nothing.
-    for r in crate::config::OURS_ONLY_SUBSET_SIZES {
+    // The skipped counts must be among the defaults, or the filter in
+    // `schemes::run` would silently drop nothing, and only VECK+ skips them.
+    use crate::config::Scheme;
+    for r in crate::config::VECK_PLUS_SKIPPED_SUBSET_SIZES {
         assert!(crate::config::DEFAULT_SUBSET_SIZES.contains(&r));
+        assert!(!Scheme::VeckPlus.measures_subset_size(r));
+        for scheme in [Scheme::Veck, Scheme::VeckStar, Scheme::Ours] {
+            assert!(scheme.measures_subset_size(r), "{scheme:?} should measure R={r}");
+        }
     }
 }
 
