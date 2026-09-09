@@ -1,4 +1,4 @@
-module PFDE
+module EFDE
 
 go 1.25.7
 

@@ -27,8 +27,8 @@ use ark_poly::{DenseUVPolynomial, EvaluationDomain, Polynomial};
 use ark_std::test_rng;
 use fde::dleq::Proof as DleqProof;
 use fde::encrypt::elgamal::MAX_BITS;
-use pfde_kzg::commit::kzg::{Kzg, Powers};
-use pfde_kzg::veck::{
+use efde_kzg::commit::kzg::{Kzg, Powers};
+use efde_kzg::veck::{
     compute_beta, interpolate_indices, subset_quotient_with_vanishing_poly, to_vanishing_poly,
     verify_subset_relation_with_vanishing_poly,
 };

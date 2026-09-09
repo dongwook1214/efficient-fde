@@ -1,14 +1,14 @@
 [package]
-name = "pfde-bench"
+name = "efde-bench"
 version = "0.1.0"
 edition = "2021"
-description = "End-to-end sender-side benchmark for VECK, VECK+, VECK* and PFDE"
+description = "End-to-end sender-side benchmark for VECK, VECK+, VECK* and EFDE"
 
 [dependencies]
-# Our KZG layer. `PFDE-KZG/bls12-381` and `PFDE-KZG/bw6-761` contain the *same*
+# Our KZG layer. `EFDE-KZG/bls12-381` and `EFDE-KZG/bw6-761` contain the *same*
 # generic library (they differ only in the curve their own tests/`main.rs` pin),
 # so linking one of them is enough to instantiate both curves here.
-pfde-kzg = { path = "../../PFDE-KZG/bls12-381", package = "PFDE-KZG" }
+efde-kzg = { path = "../../EFDE-KZG/bls12-381", package = "EFDE-KZG" }
 # Vendored baseline primitives (exponential ElGamal, range proofs, DLEQ, KZG).
 fde = { path = "../../baselines/fde" }
 

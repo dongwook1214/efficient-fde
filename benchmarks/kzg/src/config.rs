@@ -28,7 +28,7 @@ impl Scheme {
             "veck" => Ok(Self::Veck),
             "veck-plus" | "veck+" => Ok(Self::VeckPlus),
             "veck-star" | "veck*" => Ok(Self::VeckStar),
-            "ours" | "pfde" => Ok(Self::Ours),
+            "ours" | "efde" => Ok(Self::Ours),
             other => Err(format!("unknown scheme `{other}`")),
         }
     }
@@ -130,7 +130,7 @@ pub const DEFAULT_SUBSET_SIZES: [usize; 4] = [2384, 1053, 609, 386];
 pub const VECK_PLUS_SKIPPED_SUBSET_SIZES: [usize; 1] = [2384];
 
 const USAGE: &str = "\
-usage: pfde-bench [options]
+usage: efde-bench [options]
 
   --scheme <veck|veck-plus|veck-star|ours>   scheme under test        (required)
   --curve  <bls12-381|bw6-761>               pairing curve            (required)

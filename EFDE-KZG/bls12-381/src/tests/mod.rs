@@ -22,7 +22,7 @@ type Scalar = <TestCurve as ark_ec::pairing::Pairing>::ScalarField;
 type UniPoly = DensePolynomial<Scalar>;
 
 fn setup_cache_dir() -> PathBuf {
-    std::env::var("PFDE_KZG_SETUP_CACHE_DIR")
+    std::env::var("EFDE_KZG_SETUP_CACHE_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|_| {
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -33,7 +33,7 @@ fn setup_cache_dir() -> PathBuf {
 }
 
 fn setup_cache_chunk_size() -> usize {
-    std::env::var("PFDE_KZG_SETUP_CHUNK_SIZE")
+    std::env::var("EFDE_KZG_SETUP_CHUNK_SIZE")
         .ok()
         .and_then(|value| value.parse().ok())
         .unwrap_or(1 << 16)
@@ -51,7 +51,7 @@ fn open_powers_cache() -> PowersCache<TestCurve> {
 }
 
 fn bench_results_path() -> PathBuf {
-    std::env::var("PFDE_KZG_BENCH_OUTPUT")
+    std::env::var("EFDE_KZG_BENCH_OUTPUT")
         .map(PathBuf::from)
         .unwrap_or_else(|_| {
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))

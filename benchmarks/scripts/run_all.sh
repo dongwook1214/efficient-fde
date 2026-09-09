@@ -38,7 +38,7 @@ if [ "${SKIP_KZG:-0}" != "1" ]; then
     local scheme=$1 curve=$2
     shift 2
     echo "--- $scheme on $curve"
-    ./target/release/pfde-bench \
+    ./target/release/efde-bench \
       --scheme "$scheme" --curve "$curve" \
       --min-log "$MIN_LOG" --max-log "$MAX_LOG" --subsets "$SUBSETS" \
       --out "$RESULTS/kzg_${scheme}_${curve}.csv" "$@"
@@ -58,7 +58,7 @@ if [ "${SKIP_SNARK:-0}" != "1" ]; then
   SNARK_CSV="$RESULTS/snark.csv"
   rm -f "$SNARK_CSV"
   for tag in ${SUBSETS//,/ }; do
-    for dir in "$ROOT/PFDE-SNARK/bls12-381" "$ROOT/PFDE-SNARK/bw6-761" "$ROOT/baselines/veck-star-snark"; do
+    for dir in "$ROOT/EFDE-SNARK/bls12-381" "$ROOT/EFDE-SNARK/bw6-761" "$ROOT/baselines/veck-star-snark"; do
       echo "--- $(basename "$(dirname "$dir")")/$(basename "$dir") at R=$tag"
       (cd "$dir" && go run -tags "r$tag" . -csv "$SNARK_CSV")
     done

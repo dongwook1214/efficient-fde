@@ -1,14 +1,14 @@
-# Practical-FDE
+# Efficient-FDE
 
 Reference implementation and benchmark suite accompanying our paper on
-**Practical Fair Data Exchange**.
+**Efficient Fair Data Exchange**.
 
 ```
-Practical-fde/
-├── PFDE-KZG/            # our KZG layer (Rust, arkworks)
+Efficient-fde/
+├── EFDE-KZG/            # our KZG layer (Rust, arkworks)
 │   ├── bls12-381/       #   BLS12-381 instantiation
 │   └── bw6-761/         #   BW6-761  instantiation
-├── PFDE-SNARK/          # our Groth16 circuit + CP-link (Go, gnark)
+├── EFDE-SNARK/          # our Groth16 circuit + CP-link (Go, gnark)
 │   ├── bls12-381/
 │   └── bw6-761/
 ├── baselines/           # vendored reference implementations we compare against
@@ -32,11 +32,11 @@ straight into the paper.  See [`benchmarks/README.md`](benchmarks/README.md) for
 what each stage measures, which scheme runs on which curve, and where the numbers
 are extrapolated rather than measured.
 
-## PFDE-KZG (Rust)
+## EFDE-KZG (Rust)
 
 A KZG-commitment prototype built on [arkworks](https://arkworks.rs/)
 (`ark-poly-commit`, `ark-ec`, `ark-poly`): the polynomial commitment, the subset
-division, and the verifiable-encryption checks used by PFDE.
+division, and the verifiable-encryption checks used by EFDE.
 
 | Variant     | Curve     | Dependency      |
 | ----------- | --------- | --------------- |
@@ -49,12 +49,12 @@ generic over `ark_ec::pairing::Pairing`, and only the crates' own tests and
 curves from it.
 
 ```bash
-cd PFDE-KZG/bls12-381   # or bw6-761
+cd EFDE-KZG/bls12-381   # or bw6-761
 cargo test --release -- --nocapture
 cargo run --release -- setup-cache --range 1048576   # pre-generate powers of tau
 ```
 
-## PFDE-SNARK (Go)
+## EFDE-SNARK (Go)
 
 A Groth16 circuit in [gnark](https://github.com/consensys/gnark).  It proves the
 encryption relation `CT[i] == X[i] + Poseidon2(SK, SRPrime[i])` together with the
@@ -73,7 +73,7 @@ The number of sampled positions `R` is a compile-time constant chosen by build
 tag:
 
 ```bash
-cd PFDE-SNARK/bls12-381
+cd EFDE-SNARK/bls12-381
 go run -tags r256  .
 go run -tags r512  . -csv ../../benchmarks/results/snark.csv
 go run -tags r1024 .

@@ -338,7 +338,7 @@ mod test {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        std::env::temp_dir().join(format!("pfde_kzg_{name}_{suffix}"))
+        std::env::temp_dir().join(format!("efde_kzg_{name}_{suffix}"))
     }
 
     #[test]

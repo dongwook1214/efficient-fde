@@ -9,8 +9,8 @@ use ark_ec::pairing::Pairing;
 use ark_ff::UniformRand;
 use ark_std::test_rng;
 use fde::commit::kzg::Powers as FdePowers;
-use pfde_kzg::commit::kzg::Powers;
-use pfde_kzg::commit::powers_cache::PowersCache;
+use efde_kzg::commit::kzg::Powers;
+use efde_kzg::commit::powers_cache::PowersCache;
 use std::path::Path;
 use std::time::{Duration, Instant};
 

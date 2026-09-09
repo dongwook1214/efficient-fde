@@ -1,4 +1,4 @@
-//! End-to-end sender-side benchmark for VECK, VECK+, VECK* and PFDE.
+//! End-to-end sender-side benchmark for VECK, VECK+, VECK* and EFDE.
 //!
 //! Run one (scheme, curve) pair per invocation; see `benchmarks/scripts/run_all.sh`
 //! for the full sweep used in the paper.

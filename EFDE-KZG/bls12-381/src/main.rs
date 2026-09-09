@@ -1,12 +1,12 @@
-use PFDE_KZG::commit::powers_cache::PowersCache;
-use ark_bw6_761::BW6_761;
+use EFDE_KZG::commit::powers_cache::PowersCache;
+use ark_bls12_381::Bls12_381;
 use ark_ec::pairing::Pairing;
 use ark_ff::UniformRand;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::test_rng;
 use std::path::PathBuf;
 
-type Scalar = <BW6_761 as Pairing>::ScalarField;
+type Scalar = <Bls12_381 as Pairing>::ScalarField;
 
 fn main() {
     if let Err(err) = run() {
@@ -26,7 +26,7 @@ fn run() -> Result<(), String> {
 
 fn run_setup_cache(args: Vec<String>) -> Result<(), String> {
     let mut range = None;
-    let mut dir = PathBuf::from(".cache/kzg/bw6_761");
+    let mut dir = PathBuf::from(".cache/kzg/bls12_381");
     let mut chunk_size = 1usize << 16;
     // G2 powers are only needed up to the degree of the sampled vanishing
     // polynomial, so a few thousand covers every R the benchmark uses.
@@ -68,10 +68,10 @@ fn run_setup_cache(args: Vec<String>) -> Result<(), String> {
 
     let range = range.ok_or_else(usage)?;
     let mut cache = if dir.join("manifest.txt").exists() {
-        PowersCache::<BW6_761>::open(&dir).map_err(|err| err.to_string())?
+        PowersCache::<Bls12_381>::open(&dir).map_err(|err| err.to_string())?
     } else {
         let tau = tau.unwrap_or_else(|| Scalar::rand(&mut test_rng()));
-        PowersCache::<BW6_761>::open_or_create(&dir, tau, chunk_size, g2_range)
+        PowersCache::<Bls12_381>::open_or_create(&dir, tau, chunk_size, g2_range)
             .map_err(|err| err.to_string())?
     };
 

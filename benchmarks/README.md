@@ -85,7 +85,7 @@ cd benchmarks/kzg
 cargo run --release -- --scheme ours --curve bls12-381 --min-log 10 --max-log 20 \
     --subsets 2384,1053,609,386 --out ../results/kzg_ours_bls12-381.csv
 
-cd PFDE-SNARK/bls12-381 && go run -tags r609 . -csv ../../benchmarks/results/snark.csv
+cd EFDE-SNARK/bls12-381 && go run -tags r609 . -csv ../../benchmarks/results/snark.csv
 ```
 
 The Go drivers take `-cores` (default `runtime.NumCPU()`), and the value is
@@ -111,10 +111,10 @@ two thirds of the SRS in time, disk and resident memory:
 | on disk | 36.0 MiB | **12.2 MiB** |
 
 The ratio is the same at every size, so at `ell = 2^20` the SRS is about 100 MiB
-rather than 300 MiB.  `PFDE-KZG`'s own CLI takes the same budget:
+rather than 300 MiB.  `EFDE-KZG`'s own CLI takes the same budget:
 
 ```bash
-cd PFDE-KZG/bls12-381
+cd EFDE-KZG/bls12-381
 cargo run --release -- setup-cache --range 1048577 --g2-range 4096
 ```
 
@@ -143,7 +143,7 @@ The linearity assumption is checkable, and worth checking on your own machine:
 
 ```bash
 for cap in 10 11 12; do
-  ./target/release/pfde-bench --scheme veck-plus --curve bls12-381 \
+  ./target/release/efde-bench --scheme veck-plus --curve bls12-381 \
       --min-log 14 --max-log 14 --subsets 609 --max-measured-log $cap \
       --no-verify --out /tmp/lin_$cap.csv
 done   # compare encrypt_ms/m across the three
@@ -189,7 +189,7 @@ non-subgroup point set — the DLEQ is unsound otherwise — and that each defau
 sample count is the *smallest* `R` reaching its target `beta`, so a typo in the
 list cannot silently move every codeword length in the paper.
 
-`PFDE-KZG` has its own suite (`cd PFDE-KZG/bls12-381 && cargo test --release`),
+`EFDE-KZG` has its own suite (`cd EFDE-KZG/bls12-381 && cargo test --release`),
 including `divide::test::both_strategies_agree`, which requires the two division
 strategies to return identical quotients *and* remainders for divisor degrees 64
 through 2048 — the dispatch threshold must only change the cost, never the answer.
@@ -341,13 +341,13 @@ sample counts.
   stage of our own scheme at large `ell`, that overhead would have landed
   straight in the headline number.
 * For VECK\* and for us the subset polynomial is blinded with a degree-1 multiple
-  of the vanishing polynomial, as in `PFDE-KZG`'s own benchmark, so the opened
+  of the vanishing polynomial, as in `EFDE-KZG`'s own benchmark, so the opened
   value differs from `sum_i L_i(alpha) x_i` by `t(alpha) Z_S(alpha)`.  The work is
   identical either way, but a deployment has to reconcile that term with the
   circuit's `U`.
 * VECK+'s subset polynomial is deliberately *not* blinded: its DLEQ proof is only
   sound if the opened value equals `sum_i L_i(alpha) x_i` exactly.
-* `LOW_DEGREE_DIVISOR_LIMIT` in `PFDE-KZG/*/src/divide.rs` decides which division
+* `LOW_DEGREE_DIVISOR_LIMIT` in `EFDE-KZG/*/src/divide.rs` decides which division
   strategy `(phi - f_S) / Z_S` uses.  It is a cache property, so re-measure it
   before quoting `kzg_proof_ms` on new hardware:
   `cargo test --release -- --ignored divide_threshold_probe --nocapture`.  It was
@@ -360,4 +360,4 @@ sample counts.
 * `R + 2 <= ell` is required for the subset relation to be non-degenerate, so
   `R = 2384` starts at `ell = 2^12` and `R = 1053` at `ell = 2^11`.
 * The CP-link layer is the Kiltz–Wee QA-NIZK stand-in from the reference
-  implementation, run on dummy commitments; see `PFDE-SNARK/*/main.go`.
+  implementation, run on dummy commitments; see `EFDE-SNARK/*/main.go`.

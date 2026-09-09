@@ -11,7 +11,7 @@ use ark_ff::{FftField, UniformRand};
 use ark_poly::univariate::DensePolynomial;
 use ark_poly::{DenseUVPolynomial, EvaluationDomain, Polynomial};
 use ark_std::test_rng;
-use pfde_kzg::commit::kzg::Powers;
+use efde_kzg::commit::kzg::Powers;
 use sha3::Keccak256;
 
 use crate::encode::{code_lengths, encode};
@@ -334,13 +334,13 @@ fn the_default_sample_counts_hit_the_intended_redundancies() {
         .iter()
         .zip(targets.iter())
     {
-        let beta = pfde_kzg::veck::compute_beta(r, 128 + 32);
+        let beta = efde_kzg::veck::compute_beta(r, 128 + 32);
         assert!(
             (beta - target).abs() < 1e-3,
             "R={r} gives beta={beta}, expected {target}"
         );
         // And it is the *smallest* such R: one fewer sample overshoots.
-        let coarser = pfde_kzg::veck::compute_beta(r - 1, 128 + 32);
+        let coarser = efde_kzg::veck::compute_beta(r - 1, 128 + 32);
         assert!(coarser > target, "R={} already reaches beta={target}", r - 1);
     }
 
@@ -374,7 +374,7 @@ fn unused_import_guard() {
 
 // ------------------------------------------------------ division threshold
 
-/// Re-measure `pfde_kzg::divide::LOW_DEGREE_DIVISOR_LIMIT` on this machine.
+/// Re-measure `efde_kzg::divide::LOW_DEGREE_DIVISOR_LIMIT` on this machine.
 ///
 /// ```text
 /// cargo test --release -- --ignored divide_threshold_probe --nocapture
@@ -388,8 +388,8 @@ fn unused_import_guard() {
 #[ignore]
 fn divide_threshold_probe() {
     use ark_poly::GeneralEvaluationDomain;
-    use pfde_kzg::divide::{divide_blocked, divide_newton, LOW_DEGREE_DIVISOR_LIMIT};
-    use pfde_kzg::veck::to_vanishing_poly;
+    use efde_kzg::divide::{divide_blocked, divide_newton, LOW_DEGREE_DIVISOR_LIMIT};
+    use efde_kzg::veck::to_vanishing_poly;
     use std::time::Instant;
 
     let rng = &mut test_rng();

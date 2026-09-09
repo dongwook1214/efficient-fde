@@ -2,7 +2,7 @@
 """Join the Rust (KZG) and Go (SNARK) measurements into end-to-end numbers.
 
 Inputs  (in --results):
-    kzg_<scheme>_<curve>.csv   one row per (file size, R), written by `pfde-bench`
+    kzg_<scheme>_<curve>.csv   one row per (file size, R), written by `efde-bench`
     snark.csv                  one row per (scheme, curve, R), written by the Go drivers
 
 Outputs (in --results):

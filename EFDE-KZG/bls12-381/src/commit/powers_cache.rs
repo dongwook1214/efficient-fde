@@ -383,18 +383,18 @@ fn usize_to_u64(value: usize) -> Result<u64, PowersCacheError> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use ark_bw6_761::BW6_761;
+    use ark_bls12_381::Bls12_381;
     use ark_ec::pairing::Pairing;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    type Scalar = <BW6_761 as Pairing>::ScalarField;
+    type Scalar = <Bls12_381 as Pairing>::ScalarField;
 
     fn temp_cache_dir(name: &str) -> PathBuf {
         let suffix = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        std::env::temp_dir().join(format!("pfde_kzg_{name}_{suffix}"))
+        std::env::temp_dir().join(format!("efde_kzg_{name}_{suffix}"))
     }
 
     #[test]
@@ -402,18 +402,18 @@ mod test {
         let root = temp_cache_dir("powers_cache");
         let tau = Scalar::from(5u64);
 
-        let mut cache = PowersCache::<BW6_761>::open_or_create(&root, tau, 4, 16).unwrap();
+        let mut cache = PowersCache::<Bls12_381>::open_or_create(&root, tau, 4, 16).unwrap();
         cache.ensure_range(6).unwrap();
 
         let stored = cache.load_prefix_with_tau(6).unwrap();
-        let expected = Powers::<BW6_761>::unsafe_setup(tau, 6);
+        let expected = Powers::<Bls12_381>::unsafe_setup(tau, 6);
         assert_eq!(stored.tau, tau);
         assert_eq!(stored.powers.g1, expected.g1);
         assert_eq!(stored.powers.g2, expected.g2);
 
         cache.ensure_range(10).unwrap();
         let stored = cache.load_prefix_with_tau(10).unwrap();
-        let expected = Powers::<BW6_761>::unsafe_setup(tau, 10);
+        let expected = Powers::<Bls12_381>::unsafe_setup(tau, 10);
         assert_eq!(stored.tau, tau);
         assert_eq!(stored.powers.g1, expected.g1);
         assert_eq!(stored.powers.g2, expected.g2);
@@ -426,33 +426,33 @@ mod test {
     fn manifest_mismatches_are_reported() {
         let root = temp_cache_dir("powers_cache_mismatch");
         let tau = Scalar::from(9u64);
-        PowersCache::<BW6_761>::open_or_create(&root, tau, 4, 8).unwrap();
+        PowersCache::<Bls12_381>::open_or_create(&root, tau, 4, 8).unwrap();
 
         // Same directory, different parameters: each must be refused rather than
         // quietly reinterpreted.
         assert!(matches!(
-            PowersCache::<BW6_761>::open_or_create(&root, tau, 8, 8),
+            PowersCache::<Bls12_381>::open_or_create(&root, tau, 8, 8),
             Err(PowersCacheError::ChunkSizeMismatch { .. })
         ));
         assert!(matches!(
-            PowersCache::<BW6_761>::open_or_create(&root, tau + Scalar::from(1u64), 4, 8),
+            PowersCache::<Bls12_381>::open_or_create(&root, tau + Scalar::from(1u64), 4, 8),
             Err(PowersCacheError::TauMismatch)
         ));
         assert!(matches!(
-            PowersCache::<BW6_761>::open_or_create(&root, tau, 4, 9),
+            PowersCache::<Bls12_381>::open_or_create(&root, tau, 4, 9),
             Err(PowersCacheError::G2RangeUnavailable { .. })
         ));
 
         fs::write(manifest_path(&root), "curve=nonsense\nchunk_size=4\ngenerated=0\ng2_range=8\ntau=00\n")
             .unwrap();
         assert!(matches!(
-            PowersCache::<BW6_761>::open(&root),
+            PowersCache::<Bls12_381>::open(&root),
             Err(PowersCacheError::CurveMismatch { .. })
         ));
 
         fs::write(manifest_path(&root), "not a manifest\n").unwrap();
         assert!(matches!(
-            PowersCache::<BW6_761>::open(&root),
+            PowersCache::<Bls12_381>::open(&root),
             Err(PowersCacheError::InvalidManifest)
         ));
 
@@ -463,18 +463,18 @@ mod test {
 #[cfg(test)]
 mod g2_budget_test {
     use super::*;
-    use ark_bw6_761::BW6_761;
+    use ark_bls12_381::Bls12_381;
     use ark_ec::pairing::Pairing;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    type Scalar = <BW6_761 as Pairing>::ScalarField;
+    type Scalar = <Bls12_381 as Pairing>::ScalarField;
 
     fn temp_dir(name: &str) -> PathBuf {
         let suffix = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        std::env::temp_dir().join(format!("pfde_kzg_{name}_{suffix}"))
+        std::env::temp_dir().join(format!("efde_kzg_{name}_{suffix}"))
     }
 
     #[test]
@@ -484,11 +484,11 @@ mod g2_budget_test {
         let g2_range = 5usize;
 
         let mut cache =
-            PowersCache::<BW6_761>::open_or_create(&root, tau, 4, g2_range).unwrap();
+            PowersCache::<Bls12_381>::open_or_create(&root, tau, 4, g2_range).unwrap();
         cache.ensure_range(12).unwrap();
 
         let powers = cache.load_prefix(12).unwrap();
-        let expected = Powers::<BW6_761>::unsafe_setup(tau, 12);
+        let expected = Powers::<Bls12_381>::unsafe_setup(tau, 12);
 
         // Every G1 power is there; only `g2_range` G2 powers are, and they match.
         assert_eq!(powers.g1, expected.g1);
