@@ -1,8 +1,8 @@
 # Baselines
 
-Vendored copies of the reference implementations we compare against, so that the
-whole evaluation can be reproduced from a single clone.  Nothing here is our
-work; the licences and attributions of the originals apply.
+Vendored copies of the reference implementations compared against, so that the
+evaluation reproduces from a single clone.  Nothing here is our work; the licences
+and attributions of the originals apply.
 
 | Directory          | Upstream | Used for |
 | ------------------ | -------- | -------- |
@@ -11,38 +11,31 @@ work; the licences and attributions of the originals apply.
 
 ## Changes to `fde/`
 
-1. **Real random sampling and a real division.**  Upstream selects the "random"
-   subset as an FFT *subdomain*, which lets it divide by the vanishing polynomial
-   with `divide_by_vanishing_poly` in O(n).  A genuinely random subset has an
-   arbitrary vanishing polynomial, so we added `src/veck/kzg/elgamal/divide.rs`
-   (Newton-inversion Euclidean division with a blocked path for low-degree
-   divisors) and use it instead.  Without this the baseline gets a division
-   speed-up that the protocol does not actually admit, which would flatter it
-   relative to our scheme.
-2. **Trimmed.**  `benches/` (Criterion harnesses that need a checked-in
+1. **Random sampling and general division.**  Upstream selects the "random" subset
+   as an FFT *subdomain*, which admits `divide_by_vanishing_poly` in O(n).  A
+   genuinely random subset has an arbitrary vanishing polynomial, so
+   `src/veck/kzg/elgamal/divide.rs` (Newton-inversion Euclidean division with a
+   blocked path for low-degree divisors) was added and is used instead.
+2. **Trimmed.**  `benches/` (Criterion harnesses requiring a checked-in
    `powers.bin`) and `contracts/` (the Solidity settlement layer) were removed,
    together with the corresponding `[[bench]]` entries and the `criterion`
    dev-dependency.  The library sources are otherwise unmodified.
-3. `src/commit/powers_cache.rs` was added so that the powers of tau can be
-   generated once and shared with our own crates rather than regenerated per run.
+3. `src/commit/powers_cache.rs` was added so the powers of tau can be generated
+   once and shared with the other crates.
 
-Note that `fde/src/veck/kzg/elgamal/divide.rs` is *not* on the measured path:
-the harness routes every scheme's `(phi - f_S) / Z_S` through
-`EFDE-KZG`'s `subset_quotient_with_vanishing_poly`, so all four schemes get
-exactly the same division code and the same dispatch threshold.  The file is kept
-so the vendored crate still builds and its own tests still run.
+`fde/src/veck/kzg/elgamal/divide.rs` is not on the measured path: the harness
+routes every scheme's `(phi - f_S) / Z_S` through `EFDE-KZG`'s
+`subset_quotient_with_vanishing_poly`, so all four schemes share the same division
+code and dispatch threshold.  The file is kept so the vendored crate still builds.
 
-The orchestration of the baseline protocols — which stage runs when, and what is
-timed — lives in `benchmarks/kzg`, not here.  That code drives the primitives
-above directly instead of calling upstream's `Proof::new_v2`, because upstream's
-prover and verifier assume the FFT-subdomain sampling described in point 1 and no
-longer verify once real sampling is used.  Every scheme in the harness runs its
-verifier and asserts that it accepts, so the reconstructed baselines are complete
-protocol runs, not proving-only skeletons.
+The orchestration of the baseline protocols lives in `benchmarks/kzg`.  It drives
+the primitives above directly rather than calling upstream's `Proof::new_v2`,
+whose prover and verifier assume the FFT-subdomain sampling of point 1 and no
+longer verify under random sampling.  Every scheme in the harness runs its
+verifier and asserts that it accepts.
 
 ## Changes to `veck-star-snark/`
 
-Only the benchmark plumbing: `const N` moved into build-tag-selected
-`params_r*.go` files, `bench.go` added for CSV output, and `main` now honours
-`runtime.NumCPU()` instead of a hard-coded `GOMAXPROCS(32)`.  The circuit itself
-is untouched.
+Benchmark plumbing only: `const N` moved into build-tag-selected `params_r*.go`
+files, `bench.go` added for CSV output, and `main` honours `runtime.NumCPU()`
+instead of a hard-coded `GOMAXPROCS(32)`.  The circuit is untouched.

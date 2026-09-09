@@ -1,13 +1,7 @@
 # End-to-end benchmark
 
 Everything the *sender* has to do to sell a file of `ell` field elements, for the
-four schemes compared in the paper, on both curves, for `ell` from `2^10` to
-`2^20`.
-
-Earlier revisions of the paper compared only proof generation against
-VECK\*\_EL.  This harness widens that to the whole sender path — Reed–Solomon
-encoding, encryption, the KZG proof and the SNARK — and adds VECK\_EL and
-VECK+\_EL to the comparison.
+four schemes, on both curves, for `ell` from `2^10` to `2^20`.
 
 ## What is measured
 
@@ -23,7 +17,7 @@ up across schemes:
 | `subset` | interpolation of the sampled polynomial `f_S` and its commitment. |
 | `sample_crypto` | per-sample public-key work: range proofs for VECK+, the in-circuit ElGamal ciphertexts for VECK\*, nothing for us.  For base VECK this is the range proofs over the *whole* file. |
 | `kzg_proof` | quotient, its commitment, the opening at `alpha`, and (VECK, VECK+) the DLEQ proof. |
-| `verify` | the buyer's checks — run and asserted, never assumed. |
+| `verify` | the buyer's checks — run and asserted. |
 
 The Groth16 part of VECK\* and of our scheme is measured separately by the Go
 drivers and joined in by `scripts/aggregate.py`, because it depends only on `R`,
@@ -38,33 +32,28 @@ never on the file size.
 | VECK\*\_EL | — | yes (its in-circuit ElGamal shares the KZG group, forcing a 2-chain) |
 | ours | yes | yes |
 
-The harness refuses the undefined combinations rather than silently producing a
-number for them.
+Undefined combinations are refused.
 
 ## Redundancy
 
 The sweep is parameterised by the codeword expansion `beta`, not by the sample
-count, because `beta` is what the buyer pays for in bandwidth.  `beta` comes from
-`compute_beta(R, lambda + grinding)` with `lambda = 128` and `grinding = 32`,
-i.e. the grinding-aware condition `q_S ((beta+1)/2beta)^R <= 2^-128` with
-`q_S = 2^32`; inverting it gives the smallest `R` that reaches each target:
+count.  `beta` comes from `compute_beta(R, lambda + grinding)` with `lambda = 128`
+and `grinding = 32`, i.e. the grinding-aware condition
+`q_S ((beta+1)/2beta)^R <= 2^-128` with `q_S = 2^32`; inverting it gives the
+smallest `R` reaching each target:
 
 | `beta` | 1.1 | 1.25 | 1.5 | 2 |
 | --- | --- | --- | --- | --- |
 | `R` | 2384 | 1053 | 609 | 386 |
 | measured for | all but VECK+ | all | all | all |
 
-`beta = 1.1` is the low-redundancy regime; reaching it costs 2384 samples.
-Everything is measured there except VECK+, which range-proves every sampled
-shard — 19,072 range proofs per exchange, tens of seconds of verifier time, far
-outside the regime that scheme is built for.  The exclusion lives in
-`Scheme::measures_subset_size`, and `config::VECK_PLUS_SKIPPED_SUBSET_SIZES` is
-what it reads.
+VECK+ is excluded at `beta = 1.1` because it range-proves every sampled shard:
+19,072 range proofs per exchange.  The exclusion lives in
+`Scheme::measures_subset_size`, reading `config::VECK_PLUS_SKIPPED_SUBSET_SIZES`.
 
-VECK\* at `R = 2384` is affordable on the KZG side but expensive in the SNARK:
-9,573,767 constraints, against 477,830 for ours.  Groth16 setup there needs tens
-of minutes and a multi-gigabyte proving key, so `-compile-only` is available if
-only the constraint count is wanted.
+VECK\* at `R = 2384` needs 9,573,767 constraints, against 477,830 for ours.
+Groth16 setup there takes tens of minutes and a multi-gigabyte proving key;
+`-compile-only` reports the constraint count without it.
 
 `--subsets` overrides the list and `--grinding 0` drops the grinding margin.
 Because `f_S` has degree `R + 1` once blinded, a row is skipped unless
@@ -88,16 +77,14 @@ cargo run --release -- --scheme ours --curve bls12-381 --min-log 10 --max-log 20
 cd EFDE-SNARK/bls12-381 && go run -tags r609 . -csv ../../benchmarks/results/snark.csv
 ```
 
-The Go drivers take `-cores` (default `runtime.NumCPU()`), and the value is
-recorded in `snark.csv`.  This matters for the baseline: the reference VECK*
-driver hard-coded `GOMAXPROCS(32)` while ours used `runtime.NumCPU()`, so the two
-were never on the same budget.  Both now default to the machine's core count;
-pass `-cores 32` to reproduce the older VECK* figure.
+The Go drivers take `-cores` (default `runtime.NumCPU()`), recorded in
+`snark.csv`; pass `-cores 32` to match the reference VECK\* driver's hard-coded
+`GOMAXPROCS(32)`.
 
 `--help` lists every option.  The powers of tau are generated once into
 `benchmarks/kzg/.cache/srs/<curve>/` and reused.
 
-## The SRS is asymmetric on purpose
+## The SRS is asymmetric
 
 G2 powers are only touched by the verifier: `commit_g2` of the sampled vanishing
 polynomial (degree `R`) and `g2_tau` for the opening check.  Nothing needs
@@ -110,20 +97,19 @@ two thirds of the SRS in time, disk and resident memory:
 | generation | 120.8 s | **31.7 s** |
 | on disk | 36.0 MiB | **12.2 MiB** |
 
-The ratio is the same at every size, so at `ell = 2^20` the SRS is about 100 MiB
-rather than 300 MiB.  `EFDE-KZG`'s own CLI takes the same budget:
+The ratio holds at every size, so at `ell = 2^20` the SRS is about 100 MiB rather
+than 300 MiB.  `EFDE-KZG`'s own CLI takes the same budget:
 
 ```bash
 cd EFDE-KZG/bls12-381
 cargo run --release -- setup-cache --range 1048577 --g2-range 4096
 ```
 
-A cache whose curve, chunk size, tau or `g2_range` does not match what a run
-needs is refused with a message saying which, rather than being quietly
-reinterpreted.  The cache is derived data with no format compatibility to
-maintain: if anything about it looks wrong, delete the directory and let it
-regenerate.  A freshly created cache is given 4096 G2 powers whatever the
-current run needs, so a later run with a larger `R` does not have to start over.
+A cache whose curve, chunk size, tau or `g2_range` does not match what a run needs
+is refused with a message saying which.  The cache is derived data: if anything
+about it looks wrong, delete the directory and let it regenerate.  A freshly
+created cache is given 4096 G2 powers whatever the current run needs, so a later
+run with a larger `R` does not have to start over.
 
 ## Extrapolation
 
@@ -139,7 +125,7 @@ and 16 for VECK+) and scales the per-symbol cost.  Rows produced this way carry
 `extrapolated=true` and are drawn dashed in the figure.  `--no-extrapolate`
 measures everything, at the cost of a multi-day run.
 
-The linearity assumption is checkable, and worth checking on your own machine:
+The linearity assumption is checkable:
 
 ```bash
 for cap in 10 11 12; do
@@ -150,8 +136,7 @@ done   # compare encrypt_ms/m across the three
 ```
 
 On the reference run the per-symbol cost moved by 4.5% across a 4x change in the
-prefix, and by 0.6% between the two largest prefixes — the residual is parallel
-warm-up, and it shrinks as the prefix grows.
+prefix, and by 0.6% between the two largest prefixes.
 
 Nothing else is extrapolated: encoding, commitment, the masking of the codeword,
 sampling, the subset polynomial, the quotient and every opening are measured at
@@ -165,68 +150,32 @@ receives the whole file, so with nothing materialised there is nothing to check.
 ```
 benchmarks/results/
   kzg_<scheme>_<curve>.csv     per-stage timings from the Rust driver
-  snark.csv                    Groth16 + CP-link timings from the Go drivers
+  snark.csv                    Groth16 + CP-Link timings from the Go drivers
   end_to_end.csv               the join, with total sender and verifier times
-  pgfplots/proving_time.tex    \addplot blocks to paste into main.tex
+  pgfplots/proving_time.tex    \addplot blocks
   pgfplots/snark_table.tex     rows for the SNARK resource table
   figures/end_to_end.{pdf,png} preview figure
 ```
 
-## Tests
+## Repetition
 
-```bash
-cd benchmarks/kzg && cargo test --release
-```
-
-19 tests, and the ones that matter are the negative ones: an `assert!(verified)`
-inside a benchmark means nothing unless the same verifier also rejects.  The
-suite tampers with the quotient commitment, the opening, the opened value, the
-file commitment, a sampled codeword symbol, an ElGamal ciphertext, a shard
-ciphertext and a range proof, and requires each to be rejected.  It also checks
-that the encoding really is systematic (file symbols reappear in the codeword at
-stride `m'/ell`), that the barycentric Lagrange basis reproduces `f(alpha)` on a
-non-subgroup point set — the DLEQ is unsound otherwise — and that each default
-sample count is the *smallest* `R` reaching its target `beta`, so a typo in the
-list cannot silently move every codeword length in the paper.
-
-`EFDE-KZG` has its own suite (`cd EFDE-KZG/bls12-381 && cargo test --release`),
-including `divide::test::both_strategies_agree`, which requires the two division
-strategies to return identical quotients *and* remainders for divisor degrees 64
-through 2048 — the dispatch threshold must only change the cost, never the answer.
-
-The Go drivers are covered by `go vet` rather than tests; run it after any edit.
-
-## How many times each stage is measured
-
-Stages here span five orders of magnitude, so a fixed repeat count is either too
-few samples where it matters or ruinous where it does not.  Each stage therefore
-runs until it has `--repeat` samples (default 5) *or* has spent
+Each stage runs until it has `--repeat` samples (default 5) *or* has spent
 `--repeat-budget-ms` (default 2000), whichever comes first, and always at least
-once.  The reported figure is the **median**.
-
-In practice that means the millisecond-scale stages — sampling, the subset
-polynomial, the opening, verification — get all five samples, while the
-whole-codeword encryption gets one.  That is the right split: a stage taking
-seconds averages over its own scheduling jitter, a stage taking 6 ms does not.
-The `encrypt` row of VECK and VECK+ is measured exactly once by construction
-anyway, since it is the cached linear reference the larger sizes scale from.
+once.  The reported figure is the **median**.  In practice the millisecond-scale
+stages get all five samples and the whole-codeword encryption gets one; the
+`encrypt` row of VECK and VECK+ is measured exactly once by construction, since it
+is the cached linear reference the larger sizes scale from.
 
 `spread_pct` in the CSV reports how much of `prove_total_ms` is measurement
-spread: the absolute spreads of the repeated stages, summed, over the total.  It
-is the number to look at before quoting a row.  `aggregate.py` flags any row
-above 5%.  Note that a *relative* per-stage spread would be useless here — deriving
-`R` sample indices takes 20 microseconds and varies by 200%, and contributes
-nothing to any total.
-
-Why this matters: with a single sample, our own verification time varied by up to
-1.57x across file sizes that cannot affect it (CV 14% at one sample count), and that is
-precisely the figure the paper reports in milliseconds.  The `veck+` stages, at
-seconds each, were already stable to 1-3% — repetition changes nothing there.
+spread: the absolute spreads of the repeated stages, summed, over the total.
+`aggregate.py` flags any row above 5%.  A *relative* per-stage spread would be
+uninformative here — deriving `R` sample indices takes 20 microseconds and varies
+by 200%, and contributes nothing to any total.
 
 ## What each scheme's row contains
 
-A blank cell is *structurally* zero — the scheme has no such step — not an
-omission.  `--` means the stage does not exist for that scheme.
+A blank cell is *structurally* zero — the scheme has no such step.  `--` means the
+stage does not exist for that scheme.
 
 | stage | VECK | VECK+ | VECK* | ours |
 | --- | --- | --- | --- | --- |
@@ -235,10 +184,10 @@ omission.  `--` means the stage does not exist for that scheme.
 | `encrypt` | ElGamal of all `ell` symbols (8 shards + 1 full each) | ElGamal of all `m` codeword symbols | Poseidon mask of all `m` symbols | Poseidon mask of all `m` symbols |
 | `sample` | -- | `R` positions of `m` | `R` positions of `m` | `R` positions of `m` |
 | `subset` | -- | interpolate `f_S`, commit (**unblinded**) | interpolate `f_S` + blinder, commit | interpolate `f_S` + blinder, commit |
-| `sample_crypto` | range proofs for all `8*ell` shards | range proofs for the `8R` sampled shards | one ElGamal ciphertext per sampled symbol, no shard split | -- (this is the contribution) |
+| `sample_crypto` | range proofs for all `8*ell` shards | range proofs for the `8R` sampled shards | one ElGamal ciphertext per sampled symbol, no shard split | -- |
 | `kzg_proof` | open `phi` at `alpha`, DLEQ over `ell` ciphertexts | quotient, commit, open `f_S`, DLEQ over `R` | quotient, commit, open `f_S` | quotient, commit, open `f_S`, `U_alpha` |
-| SNARK (Go) | -- | -- | Groth16 prove | Groth16 prove + CP-link prove |
-| `verify` | opening, DLEQ, shard sums, all range proofs | subset pairing, opening, DLEQ, shard sums, `R` range proofs | subset pairing, opening, Groth16 verify | subset pairing, opening, Groth16 verify, CP-link verify |
+| SNARK (Go) | -- | -- | Groth16 prove | Groth16 prove + CP-Link prove |
+| `verify` | opening, DLEQ, shard sums, all range proofs | subset pairing, opening, DLEQ, shard sums, `R` range proofs | subset pairing, opening, Groth16 verify | subset pairing, opening, Groth16 verify, CP-Link verify |
 
 ## What no row contains
 
@@ -247,99 +196,81 @@ Excluded from every scheme, so the comparison is like-for-like:
 * **SRS generation and load.**  Reported separately as `srs_load_ms`; never in
   `prove_total_ms`.
 * **Groth16 setup, circuit compilation and CRS serialisation.**  Reported by the
-  Go driver as `setup_ms` / `compile_ms` / `crs_bytes`; one-time per circuit, so
-  outside the online total.  CP-link setup likewise.
-* **Transcript hashing.**  `sample_ms` times only the derivation of the `R`
-  indices from a seed; hashing the `m` ciphertexts that produce that seed is not
-  timed.  This is `O(m)` work that VECK+, VECK* and we would all pay.
+  Go driver as `setup_ms` / `compile_ms` / `crs_bytes`; one-time per circuit.
+  CP-Link setup likewise.
+* **Transcript hashing.**  `sample_ms` times only the derivation of the `R` indices
+  from a seed; hashing the `m` ciphertexts that produce that seed is not timed.
+  This is `O(m)` work that VECK+, VECK\* and we would all pay.
 * **The buyer's decryption.**  For VECK and VECK+ this means brute-forcing a
-  32-bit discrete log per shard — `8*ell` of them for VECK — which is a
-  substantial real cost that appears nowhere in these numbers.  For VECK* and for
-  us the buyer just subtracts the PRF stream.
-* **Reed--Solomon decoding**, serialisation, network transfer, peak memory, and
-  the settlement contract (adaptor signature, on-chain `Ver_key`).
-* **`C_phi` is charged to every sale.**  In a deployment the file commitment is
-  published once and amortised over all buyers; it is in `prove_total_ms` for all
-  four schemes equally.
+  32-bit discrete log per shard — `8*ell` of them for VECK.  For VECK\* and for us
+  the buyer subtracts the PRF stream.
+* **Reed–Solomon decoding**, serialisation, network transfer, peak memory, and the
+  settlement contract (adaptor signature, on-chain `Ver_key`).
+* **`C_phi` amortisation.**  In a deployment the file commitment is published once
+  and amortised over all buyers; here it is in `prove_total_ms` for all four
+  schemes equally.
 
-Per-scheme details worth stating in a paper:
+Per-scheme notes:
 
-* **VECK** is extrapolated above `ell = 2^14`: its encryption, range proofs and
-  the two size-`ell` DLEQ multi-scalar multiplications are scaled from a measured
-  prefix, and those rows are not verified because no ciphertexts are
-  materialised.  In extrapolated rows the DLEQ MSM is timed over SRS points
-  rather than real ciphertexts, which costs the same for the same number of bases.
+* **VECK** is extrapolated above `ell = 2^14`: its encryption, range proofs and the
+  two size-`ell` DLEQ multi-scalar multiplications are scaled from a measured
+  prefix, and those rows are not verified because no ciphertexts are materialised.
+  In extrapolated rows the DLEQ MSM is timed over SRS points rather than real
+  ciphertexts, which costs the same for the same number of bases.
 * **VECK+** is extrapolated above `ell = 2^16`, but only its whole-codeword
   ElGamal: the sampled ciphertexts, range proofs, DLEQ and KZG work are real, and
   those rows still verify.  The re-encryption of the `R` sampled positions is
-  performed but deliberately not timed — a streaming prover keeps them from the
-  first pass; charging it twice would inflate VECK+.
-* **VECK\* is not charged for the 32-bit shard split, on either side.**  This is
-  a deliberate departure from the reference implementation.  Exponential ElGamal
-  forces VECK and VECK+ to split each scalar into `N` 32-bit pieces, because a
-  full field element's discrete logarithm is not brute-forceable; that costs
-  `N + 1` ciphertexts per value to produce, and a split-scalar consistency check
-  to verify, which ties what the buyer can decrypt (the shards) to what the KZG
+  performed but not timed, since a streaming prover keeps them from the first pass.
+* **VECK\* is not charged for the 32-bit shard split, on either side.**
+  Exponential ElGamal forces VECK and VECK+ to split each scalar into `N` 32-bit
+  pieces, at `N + 1` ciphertexts per value plus a split-scalar consistency check on
+  the verifier, which ties what the buyer decrypts (the shards) to what the KZG
   proof binds (the value).  VECK\*'s sampled ciphertexts are never decrypted that
-  way: they are inputs to its SNARK, which proves the encryption relation itself.
-  The split has nothing to do, and the bridge has nothing to bridge.
-
-  The reference implementation does both anyway, because its encryption helper
-  and its `verify_v2` are VECK+'s reused wholesale, and this harness inherited
-  that.  On BW6-761 (`N = 12`) it cost the baseline about 10x on `sample_crypto`
-  and 14x on verification -- 595 microseconds per sample of checking alone, being
-  24 G1 scalar multiplications plus roughly 48 point normalisations, or 93% of
-  the scheme's KZG-side verification time.  With both removed, VECK\* and our
-  scheme verify in the same time on the same curve, which is the correct answer:
-  at this layer they do the same two pairing checks, and the difference between
-  the schemes lives in the SNARK.
-* **VECK\*** is charged the same whole-codeword Poseidon mask as we are.  The
-  reference implementation does not benchmark that stage at all, so this is an
-  addition on its behalf, using our PRF rather than its MiMC.  Its KZG group is
-  instantiated as BW6-761 rather than its inner BLS12-377.
+  way: they are inputs to its SNARK, which proves the encryption relation itself,
+  so neither the split nor the check has anything to do.  With both removed,
+  VECK\* and our scheme verify in the same time on the same curve — at this layer
+  both do the same two pairing checks, and the difference lives in the SNARK.
+* **VECK\*** is charged the same whole-codeword Poseidon mask as we are, using our
+  PRF rather than its MiMC; the reference implementation does not benchmark that
+  stage.  Its KZG group is instantiated as BW6-761 rather than its inner
+  BLS12-377, matching the reference benchmark.
 * **The SNARK circuits are untouched.**  `Circuit`, `Define` and the range checks
-  are byte-identical to the sources this repository started from, in all three
-  drivers, so the constraint counts are the originals.  The only edits are
-  benchmark plumbing: `const N` moved into build-tag-selected `params_r*.go`
-  files, the durations that were already being printed are also stored in a
-  `metrics` struct, `main` parses flags and appends a CSV row, and `-cores`
-  replaces the hard-coded `GOMAXPROCS`.
+  are byte-identical to the upstream sources in all three drivers, so the
+  constraint counts are the originals.  The only edits are benchmark plumbing:
+  `const N` moved into build-tag-selected `params_r*.go` files, the durations
+  already being printed are also stored in a `metrics` struct, `main` parses flags
+  and appends a CSV row, and `-cores` replaces the hard-coded `GOMAXPROCS`.
 * **Ours** double-counts `R` symbols of masking: the Go driver recomputes
-  Poseidon2 for the `R` circuit inputs on the host.  Against `m = beta * ell`
-  this is well under a percent of the stage at every size in the sweep, and is
-  left alone rather than special-cased.
+  Poseidon2 for the `R` circuit inputs on the host.  Against `m = beta * ell` this
+  is under a percent of the stage at every size in the sweep.
 
-## Cross-check against the published table
+## Tests
 
-The reconstructed VECK+ verifier reproduces the paper's own
-`tab:SNARK-verification-time` on the same machine, which is the strongest
-available evidence that the reconstruction is faithful rather than merely
-self-consistent:
+```bash
+cd benchmarks/kzg && cargo test --release
+```
 
-| R | paper | this harness |
-| --- | --- | --- |
-| 256 | 1171 ms | 1179 ms |
-| 512 | 2353 ms | 2548 ms |
-| 1024 | 4680 ms | 4796 ms |
+The suite tampers with the quotient commitment, the opening, the opened value, the
+file commitment, a sampled codeword symbol, an ElGamal ciphertext, a shard
+ciphertext and a range proof, and requires each to be rejected.  It also checks
+that the encoding is systematic (file symbols reappear in the codeword at stride
+`m'/ell`), that the barycentric Lagrange basis reproduces `f(alpha)` on a
+non-subgroup point set — the DLEQ is unsound otherwise — and that each default
+sample count is the smallest `R` reaching its target `beta`.
 
-(taken at the sample counts the paper used before this sweep was re-indexed by
-`beta`; the agreement is what validates the reconstruction, not the values.)
+`EFDE-KZG` has its own suite (`cd EFDE-KZG/bls12-381 && cargo test --release`),
+including `divide::test::both_strategies_agree`, which requires the two division
+strategies to return identical quotients *and* remainders for divisor degrees 64
+through 2048.
 
-Our own verification times land at 6.0 / 7.7 / 10.4 ms here against 9 / 12 / 20 ms
-in the table; the table's figure additionally includes the Groth16 and CP-link
-verification measured by the Go driver.  Those figures were taken at the old
-`R = 256, 512, 1024`; re-run the cross-check after the move to `beta`-indexed
-sample counts.
+The Go drivers are covered by `go vet`.
 
 ## Caveats
 
 * The host-side PRF is a width-2 Poseidon permutation with 8 full and 50 partial
   rounds and an `x^5` S-box, written out directly in `mask.rs` — the same width
   and round counts as the Poseidon2 in the gnark circuits, which differs only in
-  its linear layer (a 2x2 matrix at this width either way).  Going through
-  `PoseidonSponge` instead costs 3.2x more, and since masking is the *dominant*
-  stage of our own scheme at large `ell`, that overhead would have landed
-  straight in the headline number.
+  its linear layer (a 2x2 matrix at this width either way).
 * For VECK\* and for us the subset polynomial is blinded with a degree-1 multiple
   of the vanishing polynomial, as in `EFDE-KZG`'s own benchmark, so the opened
   value differs from `sum_i L_i(alpha) x_i` by `t(alpha) Z_S(alpha)`.  The work is
@@ -350,14 +281,10 @@ sample counts.
 * `LOW_DEGREE_DIVISOR_LIMIT` in `EFDE-KZG/*/src/divide.rs` decides which division
   strategy `(phi - f_S) / Z_S` uses.  It is a cache property, so re-measure it
   before quoting `kzg_proof_ms` on new hardware:
-  `cargo test --release -- --ignored divide_threshold_probe --nocapture`.  It was
-  650, which made the largest sample counts miss the faster path; the measured
-  crossover is between 1280 and 1536, so it is now 1280.  Of the current sample
-  counts, `R = 1053`, `609` and `386` take the blocked path and `R = 2384` the
-  plain Newton one, which is the right side of the crossover for each.
-* VECK\*'s KZG group is instantiated as BW6-761 rather than its inner BLS12-377,
-  matching the reference benchmark this comparison extends.
-* `R + 2 <= ell` is required for the subset relation to be non-degenerate, so
-  `R = 2384` starts at `ell = 2^12` and `R = 1053` at `ell = 2^11`.
-* The CP-link layer is the Kiltz–Wee QA-NIZK stand-in from the reference
+  `cargo test --release -- --ignored divide_threshold_probe --nocapture`.  The
+  measured crossover is between 1280 and 1536 and the constant is 1280, which puts
+  `R = 1053`, `609` and `386` on the blocked path and `R = 2384` on the plain
+  Newton one.
+* `R + 2 <= ell` is required for the subset relation to be non-degenerate.
+* The CP-Link layer is the Kiltz–Wee QA-NIZK stand-in from the reference
   implementation, run on dummy commitments; see `EFDE-SNARK/*/main.go`.
