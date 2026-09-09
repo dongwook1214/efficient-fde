@@ -84,33 +84,6 @@ The Go drivers take `-cores` (default `runtime.NumCPU()`), recorded in
 `--help` lists every option.  The powers of tau are generated once into
 `benchmarks/kzg/.cache/srs/<curve>/` and reused.
 
-## The SRS is asymmetric
-
-G2 powers are only touched by the verifier: `commit_g2` of the sampled vanishing
-polynomial (degree `R`) and `g2_tau` for the opening check.  Nothing needs
-`O(ell)` of them.  The cache therefore takes a separate `g2_range = R + 2`, and
-since a compressed BLS12-381 G2 point is 192 bytes against G1's 96, that removes
-two thirds of the SRS in time, disk and resident memory:
-
-| `ell = 2^17`, BLS12-381 | full G2 | `g2_range = 1026` |
-| --- | --- | --- |
-| generation | 120.8 s | **31.7 s** |
-| on disk | 36.0 MiB | **12.2 MiB** |
-
-The ratio holds at every size, so at `ell = 2^20` the SRS is about 100 MiB rather
-than 300 MiB.  `EFDE-KZG`'s own CLI takes the same budget:
-
-```bash
-cd EFDE-KZG/bls12-381
-cargo run --release -- setup-cache --range 1048577 --g2-range 4096
-```
-
-A cache whose curve, chunk size, tau or `g2_range` does not match what a run needs
-is refused with a message saying which.  The cache is derived data: if anything
-about it looks wrong, delete the directory and let it regenerate.  A freshly
-created cache is given 4096 G2 powers whatever the current run needs, so a later
-run with a larger `R` does not have to start over.
-
 ## Extrapolation
 
 Two stages touch every transmitted symbol with public-key operations:
