@@ -123,11 +123,11 @@ pub const DEFAULT_SUBSET_SIZES: [usize; 4] = [2384, 1053, 609, 386];
 
 /// Sample counts VECK+ is not measured at.
 ///
-/// `beta = 1.1` needs 2384 samples, and VECK+ range-proves every sampled shard:
-/// 19,072 range proofs per exchange, tens of seconds of verifier time, far
-/// outside the regime the scheme is built for.  Every other scheme is measured
-/// at every default sample count.
-pub const VECK_PLUS_SKIPPED_SUBSET_SIZES: [usize; 1] = [2384];
+/// Empty: every scheme is measured at every default sample count.  `beta = 1.1`
+/// costs VECK+ 19,072 range proofs per exchange (2384 samples x 8 shards) and
+/// tens of seconds of verifier time -- far outside the regime the scheme is
+/// built for, which is exactly why the point is worth plotting.
+pub const VECK_PLUS_SKIPPED_SUBSET_SIZES: [usize; 0] = [];
 
 const USAGE: &str = "\
 usage: efde-bench [options]
