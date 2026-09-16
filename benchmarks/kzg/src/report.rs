@@ -40,9 +40,14 @@ pub struct Row {
 }
 
 impl Row {
+    /// Sender cost of one exchange.
+    ///
+    /// `srs_load_ms` and `commit_ms` are reported but not summed here: the SRS
+    /// is a one-time setup artefact, and the file commitment `C_phi` is an
+    /// *input* to `VECK.Enc` -- a seller computes it once per asset, not once
+    /// per sale.
     pub fn prove_total_ms(&self) -> f64 {
         self.encode_ms
-            + self.commit_ms
             + self.encrypt_ms
             + self.sample_ms
             + self.subset_ms
