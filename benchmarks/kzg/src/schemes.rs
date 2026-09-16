@@ -29,7 +29,8 @@ use fde::dleq::Proof as DleqProof;
 use fde::encrypt::elgamal::MAX_BITS;
 use efde_kzg::commit::kzg::{Kzg, Powers};
 use efde_kzg::veck::{
-    compute_beta, interpolate_indices, subset_quotient_with_vanishing_poly, to_vanishing_poly,
+    compute_beta, interpolate_indices_with_vanishing, subset_quotient_with_vanishing_poly,
+    vanishing_poly_dense,
     verify_subset_relation_with_vanishing_poly,
 };
 use sha3::Keccak256;
@@ -92,9 +93,9 @@ pub fn build_subset<C: Pairing, R: ark_std::rand::Rng>(
     blind: bool,
     rng: &mut R,
 ) -> SubsetPoly<C> {
-    let vanishing: Poly<C> =
-        DensePolynomial::from(to_vanishing_poly(positions.to_vec(), encoded.code_domain));
-    let interpolated = interpolate_indices(&encoded.codeword, positions);
+    let vanishing: Poly<C> = vanishing_poly_dense(positions, encoded.code_domain);
+    let interpolated =
+        interpolate_indices_with_vanishing(&encoded.codeword, positions, &vanishing);
     let poly: Poly<C> = if blind {
         let blinder = DensePolynomial::from_coefficients_vec(vec![
             C::ScalarField::rand(rng),

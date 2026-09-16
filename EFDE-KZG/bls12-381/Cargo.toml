@@ -11,4 +11,5 @@ ark-poly = "0.4"
 ark-poly-commit = "0.4"
 ark-serialize = { version = "0.4", features = ["derive"] }
 ark-std = "0.4"
+rayon = "1.8"
 thiserror = "1"

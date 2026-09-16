@@ -13,6 +13,7 @@ dependencies = [
  "ark-poly-commit",
  "ark-serialize",
  "ark-std",
+ "rayon",
  "thiserror",
 ]
 
