@@ -12,6 +12,7 @@ efde-kzg = { path = "../../EFDE-KZG/bls12-381", package = "EFDE-KZG" }
 # Vendored baseline primitives (exponential ElGamal, range proofs, DLEQ, KZG).
 fde = { path = "../../baselines/fde" }
 
+ark-bls12-377 = "0.4"
 ark-bls12-381 = "0.4"
 ark-bw6-761 = "0.4"
 ark-crypto-primitives = { version = "0.4", default-features = false, features = ["sponge", "std", "parallel"] }

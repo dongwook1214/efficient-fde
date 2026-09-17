@@ -354,6 +354,7 @@ name = "efde-bench"
 version = "0.1.0"
 dependencies = [
  "EFDE-KZG",
+ "ark-bls12-377",
  "ark-bls12-381",
  "ark-bw6-761",
  "ark-crypto-primitives",

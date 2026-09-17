@@ -25,14 +25,21 @@ never on the file size.
 
 ## Which scheme runs on which curve
 
-| scheme | BLS12-381 | BW6-761 |
-| ------ | --------- | ------- |
-| VECK\_EL | yes | — |
-| VECK+\_EL | yes | — |
-| VECK\*\_EL | — | yes (its in-circuit ElGamal shares the KZG group, forcing a 2-chain) |
-| ours | yes | yes |
+| scheme | BLS12-381 | BLS12-377 | BW6-761 |
+| ------ | --------- | --------- | ------- |
+| VECK\_EL | yes | — | — |
+| VECK+\_EL | yes | — | — |
+| VECK\*\_EL | — | yes | — |
+| ours | yes | — | yes |
 
 Undefined combinations are refused.
+
+VECK\*\_EL operates on its sampled ElGamal ciphertexts inside the circuit, so
+they have to share the group its commitment lives in, and that group has to be
+the inner curve of the two-chain the proof runs on.  Its KZG layer is therefore
+measured on **BLS12-377** while its circuit is measured on **BW6-761** — one
+scheme, two curves, one per layer.  `ours` needs no two-chain; its BW6-761 row
+exists so that the two schemes can be compared on the same SNARK curve.
 
 ## Redundancy
 

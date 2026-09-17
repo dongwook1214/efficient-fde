@@ -57,6 +57,10 @@ impl Scheme {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Curve {
     Bls12_381,
+    /// Inner curve of the BLS12-377/BW6-761 two-chain.  VECK*'s commitment and
+    /// sampled ElGamal ciphertexts live here so that the BW6-761 circuit can
+    /// operate on them natively.
+    Bls12_377,
     Bw6_761,
 }
 
@@ -64,6 +68,7 @@ impl Curve {
     pub fn parse(value: &str) -> Result<Self, String> {
         match value {
             "bls12-381" | "bls12_381" => Ok(Self::Bls12_381),
+            "bls12-377" | "bls12_377" => Ok(Self::Bls12_377),
             "bw6-761" | "bw6_761" => Ok(Self::Bw6_761),
             other => Err(format!("unknown curve `{other}`")),
         }
@@ -72,6 +77,7 @@ impl Curve {
     pub fn tag(self) -> &'static str {
         match self {
             Self::Bls12_381 => "bls12-381",
+            Self::Bls12_377 => "bls12-377",
             Self::Bw6_761 => "bw6-761",
         }
     }
@@ -79,6 +85,7 @@ impl Curve {
     pub fn cache_tag(self) -> &'static str {
         match self {
             Self::Bls12_381 => "bls12_381",
+            Self::Bls12_377 => "bls12_377",
             Self::Bw6_761 => "bw6_761",
         }
     }
@@ -133,7 +140,7 @@ const USAGE: &str = "\
 usage: efde-bench [options]
 
   --scheme <veck|veck-plus|veck-star|ours>   scheme under test        (required)
-  --curve  <bls12-381|bw6-761>               pairing curve            (required)
+  --curve  <bls12-381|bls12-377|bw6-761>     pairing curve            (required)
   --min-log <k>                              smallest file size 2^k   (default 10)
   --max-log <k>                              largest  file size 2^k   (default 20)
   --subsets <R,...>                          sample counts            (default 2384,1053,609,386)

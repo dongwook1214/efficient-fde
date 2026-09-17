@@ -41,6 +41,9 @@ checks, built on [arkworks](https://arkworks.rs/) (`ark-poly-commit`, `ark-ec`,
 | `bls12-381` | BLS12-381 | `ark-bls12-381` |
 | `bw6-761`   | BW6-761   | `ark-bw6-761`   |
 
+The benchmark driver additionally instantiates BLS12-377 (`ark-bls12-377`) for
+VECK\*\_EL's KZG layer; see `benchmarks/README.md`.
+
 Both directories contain the same library: `commit`, `divide` and `veck` are
 generic over `ark_ec::pairing::Pairing`, and only the crates' own tests and
 `main.rs` pin a curve.

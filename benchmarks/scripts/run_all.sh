@@ -48,9 +48,11 @@ if [ "${SKIP_KZG:-0}" != "1" ]; then
   run_kzg ours       bls12-381
   run_kzg veck-plus  bls12-381 --max-measured-log "$VECK_PLUS_CAP"
   run_kzg veck       bls12-381 --max-measured-log "$VECK_CAP"
-  # BW6-761: ours and VECK*, whose in-circuit ElGamal forces the 2-chain.
+  # BW6-761: ours, for the same-SNARK-curve comparison.  VECK*'s in-circuit
+  # ElGamal forces its commitment onto the inner curve of that two-chain, so its
+  # KZG layer is measured on BLS12-377 while its circuit is measured on BW6-761.
   run_kzg ours       bw6-761
-  run_kzg veck-star  bw6-761
+  run_kzg veck-star  bls12-377
 fi
 
 if [ "${SKIP_SNARK:-0}" != "1" ]; then
