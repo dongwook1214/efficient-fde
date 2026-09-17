@@ -303,8 +303,10 @@ where
     row.encode_ms = track(sample);
 
     // ---- commit -----------------------------------------------------------
+    // Not fed through `track`: `commit_ms` is reported but is not part of
+    // `prove_total_ms()`, so its spread must not enter `spread_pct` either.
     let (com_phi, sample) = measure(limits, || powers.commit_g1(&encoded.poly));
-    row.commit_ms = track(sample);
+    row.commit_ms = sample.ms();
 
     let payload = &encoded.codeword.evals[..m];
 
@@ -323,12 +325,27 @@ where
             // The round constants are public parameters, so they are built once
             // outside the timed region.
             let prf = mask::Prf::<C::ScalarField>::new();
-            let (_cipher, sample) = measure(limits, || mask::mask_encrypt(&prf, payload, mask_key));
+            let (cipher, sample) = measure(limits, || mask::mask_encrypt(&prf, payload, mask_key));
             row.encrypt_ms = track(sample);
 
             // ---- sample ----------------------------------------------------
-            let seed = sample::transcript_seed(&[com_phi.into_affine()]);
-            let (positions, sample) = measure(limits, || sample::sample_positions(seed, m, r));
+            //
+            // The subset challenge is bound to the whole transmitted ciphertext,
+            // so this stage absorbs all `m` symbols before deriving the `R`
+            // positions.  Key generation is not part of sampling, so `vk` is
+            // formed outside the timed region and only absorbed inside it.
+            let vk = (<C::G1Affine as AffineRepr>::generator() * mask_key).into_affine();
+            let ((seed, positions), sample) = measure(limits, || {
+                let mut transcript = sample::Transcript::new(b"fde:subset-challenge");
+                transcript.absorb(&com_phi.into_affine());
+                transcript.absorb(&vk);
+                transcript.absorb_many(&cipher);
+                transcript.absorb_u64(m as u64);
+                transcript.absorb_u64(r as u64);
+                let seed = transcript.finalize();
+                let positions = sample::derive_positions(&seed, m, r);
+                (seed, positions)
+            });
             row.sample_ms = track(sample);
 
             // ---- subset ----------------------------------------------------
@@ -391,8 +408,23 @@ where
             row.encrypt_ms = reference.encrypt_ms * scale;
 
             // ---- sample ----------------------------------------------------
-            let seed = sample::transcript_seed(&[com_phi.into_affine()]);
-            let (positions, stat) = measure(limits, || sample::sample_positions(seed, m, r));
+            //
+            // Absorbs the codeword symbols rather than the ElGamal ciphertexts
+            // this scheme actually transmits, which understates the pass by the
+            // ElGamal expansion factor.  Its bulk encryption already dominates
+            // the row by three orders of magnitude, so the difference is not
+            // visible in the total.
+            let ((seed, positions), stat) = measure(limits, || {
+                let mut transcript = sample::Transcript::new(b"fde:subset-challenge");
+                transcript.absorb(&com_phi.into_affine());
+                transcript.absorb(&encryption_pk);
+                transcript.absorb_many(payload);
+                transcript.absorb_u64(m as u64);
+                transcript.absorb_u64(r as u64);
+                let seed = transcript.finalize();
+                let positions = sample::derive_positions(&seed, m, r);
+                (seed, positions)
+            });
             row.sample_ms = track(stat);
 
             // ---- subset ----------------------------------------------------
@@ -480,8 +512,19 @@ where
             row.encrypt_ms = reference.encrypt_ms * scale;
             row.sample_crypto_ms = reference.range_ms * scale;
 
-            // There is no subset: the buyer receives the whole file.
-            let seed = sample::transcript_seed(&[com_phi.into_affine()]);
+            // There is no subset: the buyer receives the whole file.  The
+            // point challenge is still bound to the transmitted ciphertext; see
+            // the note in the VECK+ branch on what is absorbed.
+            let (seed, stat) = measure(limits, || {
+                let mut transcript = sample::Transcript::new(b"fde:subset-challenge");
+                transcript.absorb(&com_phi.into_affine());
+                transcript.absorb(&encryption_pk);
+                transcript.absorb_many(payload);
+                transcript.absorb_u64(m as u64);
+                transcript.absorb_u64(r as u64);
+                transcript.finalize()
+            });
+            row.sample_ms = track(stat);
             let alpha: C::ScalarField = sample::challenge_scalar(&seed, b"alpha");
 
             // ---- kzg_proof: opening of phi plus the DLEQ -------------------

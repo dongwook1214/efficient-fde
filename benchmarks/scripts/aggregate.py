@@ -28,9 +28,11 @@ SCHEME_LABEL = {
 }
 
 # Stages that make up the online sender cost.
+#
+# `commit_ms` is reported separately but not summed here: the file commitment
+# is an input to `VECK.Enc`, computed once per asset rather than once per sale.
 PROVE_STAGES = [
     "encode_ms",
-    "commit_ms",
     "encrypt_ms",
     "sample_ms",
     "subset_ms",

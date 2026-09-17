@@ -87,9 +87,9 @@ fn barycentric_basis_reproduces_the_evaluation() {
 
 #[test]
 fn sampling_is_deterministic_and_distinct() {
-    let first = sample::sample_positions([7u8; 32], 256, 32);
-    let second = sample::sample_positions([7u8; 32], 256, 32);
-    let other = sample::sample_positions([8u8; 32], 256, 32);
+    let first = sample::derive_positions(&[7u8; 32], 256, 32);
+    let second = sample::derive_positions(&[7u8; 32], 256, 32);
+    let other = sample::derive_positions(&[8u8; 32], 256, 32);
     assert_eq!(first, second);
     assert_ne!(first, other);
     assert_eq!(first.len(), 32);
@@ -147,8 +147,14 @@ fn fixture(ell: usize, r: usize, beta: f64) -> Fixture {
     let encoded = encode(&file, code_len);
     let powers = setup(ell + 1);
     let com_phi = powers.commit_g1(&encoded.poly);
-    let seed = sample::transcript_seed(&[com_phi.into_affine()]);
-    let positions = sample::sample_positions(seed, m, r);
+    let seed = {
+        let mut transcript = sample::Transcript::new(b"fde:subset-challenge");
+        transcript.absorb(&com_phi.into_affine());
+        transcript.absorb_u64(m as u64);
+        transcript.absorb_u64(r as u64);
+        transcript.finalize()
+    };
+    let positions = sample::derive_positions(&seed, m, r);
     Fixture {
         powers,
         encoded,

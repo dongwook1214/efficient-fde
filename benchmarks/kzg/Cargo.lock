@@ -364,6 +364,7 @@ dependencies = [
  "ark-std",
  "fde",
  "rayon",
+ "sha2",
  "sha3",
 ]
 
