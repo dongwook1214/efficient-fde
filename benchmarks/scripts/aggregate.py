@@ -40,6 +40,13 @@ PROVE_STAGES = [
     "kzg_proof_ms",
 ]
 
+# The curve a scheme's SNARK runs on, when it differs from the curve its KZG
+# layer is measured on.  VECK* is the only such scheme: its sampled ElGamal
+# ciphertexts live in the inner curve of the two-chain, so its KZG layer is
+# measured on BLS12-377 while its circuit is proved on BW6-761.  Every other
+# scheme proves on the curve it commits on, so the join key is unchanged.
+SNARK_CURVE = {"veck-star": "bw6-761"}
+
 
 def read_csv(path: Path) -> list[dict]:
     with path.open(newline="") as handle:
@@ -72,7 +79,7 @@ def build(results: Path) -> list[dict]:
             kzg_prove = sum(as_float(row, stage) for stage in PROVE_STAGES)
             kzg_verify = as_float(row, "verify_ms") if row.get("verify_ms") else None
 
-            snark_row = snark.get((scheme, curve, r))
+            snark_row = snark.get((scheme, SNARK_CURVE.get(scheme, curve), r))
             snark_prove = 0.0
             snark_verify = 0.0
             snark_setup = 0.0

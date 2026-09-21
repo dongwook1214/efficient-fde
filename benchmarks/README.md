@@ -52,11 +52,9 @@ smallest `R` reaching each target:
 | `beta` | 1.1 | 1.25 | 1.5 | 2 |
 | --- | --- | --- | --- | --- |
 | `R` | 2384 | 1053 | 609 | 386 |
-| measured for | all but VECK+ | all | all | all |
+| measured for | all | all | all | all |
 
-VECK+ is excluded at `beta = 1.1` because it range-proves every sampled shard:
-19,072 range proofs per exchange.  The exclusion lives in
-`Scheme::measures_subset_size`, reading `config::VECK_PLUS_SKIPPED_SUBSET_SIZES`.
+Every scheme is measured at every `beta`.
 
 VECK\* at `R = 2384` needs 9,573,767 constraints, against 477,830 for ours.
 Groth16 setup there takes tens of minutes and a multi-gigabyte proving key;

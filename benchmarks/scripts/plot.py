@@ -28,7 +28,7 @@ from matplotlib.lines import Line2D  # noqa: E402
 SERIES = [
     ("veck", "bls12-381", "VECK (BLS12-381)", "#8A6D00", "v"),
     ("veck-plus", "bls12-381", "VECK+ (BLS12-381)", "#00B180", "s"),
-    ("veck-star", "bw6-761", "VECK* (BW6-761)", "#0077B1", "^"),
+    ("veck-star", "bls12-377", "VECK* (BLS12-377/BW6-761)", "#0077B1", "^"),
     ("ours", "bw6-761", "Ours (BW6-761)", "#7E2F8E", "D"),
     ("ours", "bls12-381", "Ours (BLS12-381)", "#B13A00", "o"),
 ]
