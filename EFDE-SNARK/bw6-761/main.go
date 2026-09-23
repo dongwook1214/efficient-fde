@@ -15,8 +15,6 @@ import (
 	bw6761 "github.com/consensys/gnark-crypto/ecc/bw6-761"
 	bw6761fr "github.com/consensys/gnark-crypto/ecc/bw6-761/fr"
 	"github.com/consensys/gnark-crypto/ecc/bw6-761/fr/poseidon2"
-	embeddedTed "github.com/consensys/gnark-crypto/ecc/bw6-761/twistededwards"
-	gcTed "github.com/consensys/gnark-crypto/ecc/twistededwards"
 	"github.com/consensys/gnark-crypto/hash"
 
 	"github.com/consensys/gnark/backend/groth16"
@@ -24,8 +22,6 @@ import (
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
-
-	ted "github.com/consensys/gnark/std/algebra/native/twistededwards"
 )
 
 // Circuit encodes:
@@ -57,64 +53,7 @@ type Circuit struct {
 	X [N + 2]frontend.Variable
 }
 
-// rangeCheckEmbeddedFr enforces 0 <= v <= r-1 where r is the embedded twisted Edwards scalar modulus.
-// It (1) constrains v to n bits (nbits = bitlen(r-1)) and (2) proves v <= r-1
-// using an MSB-first lexicographic compare against the constant (r-1).
-func rangeCheckEmbeddedFr(api frontend.API, v frontend.Variable) error {
-	curve, err := ted.NewEdCurve(api, gcTed.BW6_761)
-	if err != nil {
-		return err
-	}
-	q := curve.Params().Order
-	var bound big.Int
-	bound.Sub(q, big.NewInt(1)) // r - 1
-	nbits := bound.BitLen()
-
-	// Decompose v into nbits bits (LSB-first). This already enforces v < 2^nbits.
-	bits := api.ToBinary(v, nbits)
-
-	// Lexicographic check: ensure v <= bound.
-	// We maintain two boolean flags while scanning MSB->LSB:
-	//  equal = 1 iff all higher bits matched so far
-	//  less  = 1 iff v is already proven strictly less at a higher bit
-	// At the end, we assert equal + less == 1  (i.e., v == bound OR v < bound).
-	var equal frontend.Variable = 1
-	var less frontend.Variable = 0
-
-	for i := nbits - 1; i >= 0; i-- {
-		vi := bits[i]      // bit i of v (0 or 1)
-		bi := bound.Bit(i) // bit i of bound (constant 0 or 1)
-
-		// vi < bi  <=>  (1 - vi) && bi
-		viLtBi := api.Mul(api.Sub(1, vi), int(bi))
-
-		// If we were equal so far and now vi < bi, then v < bound forever after.
-		less = api.Add(less, api.Mul(equal, viLtBi))
-
-		// Update "equal": stays 1 only if current bits are equal.
-		// If bi == 0: equal <- equal && (vi == 0)  -> equal * (1 - vi)
-		// If bi == 1: equal <- equal && (vi == 1)  -> equal * vi
-		if bi == 0 {
-			equal = api.Mul(equal, api.Sub(1, vi))
-		} else {
-			equal = api.Mul(equal, vi)
-		}
-	}
-
-	// Both flags are boolean by construction; enforce the final condition.
-	api.AssertIsBoolean(equal)
-	api.AssertIsBoolean(less)
-	api.AssertIsEqual(api.Add(equal, less), 1) // v == bound OR v < bound
-
-	return nil
-}
-
 func (c *Circuit) Define(api frontend.API) error {
-	// Range check for SK: SK < q (embedded twisted Edwards curve order)
-	if err := rangeCheckEmbeddedFr(api, c.SK); err != nil {
-		return err
-	}
-
 	var tempO frontend.Variable = 0
 
 	// Poseidon2 permutation for BW6-761
@@ -436,18 +375,15 @@ func setup(num_cores int) (
 	metrics.setup = time.Since(start)
 	fmt.Printf("Setup:   %v\n", metrics.setup)
 
-	q := embeddedTed.GetEdwardsCurve().Order
+	// SK is uniform in the scalar field, as in the scheme: nothing inside the
+	// circuit constrains it to a smaller range.
 	var sk bw6761fr.Element
-	for {
-		if _, err := sk.SetRandom(); err != nil {
-			log.Fatal(err)
-		}
-		skBI := new(big.Int)
-		sk.BigInt(skBI)
-		if skBI.Cmp(&q) < 0 {
-			return cs, pk, vk, skBI
-		}
+	if _, err := sk.SetRandom(); err != nil {
+		log.Fatal(err)
 	}
+	skBI := new(big.Int)
+	sk.BigInt(skBI)
+	return cs, pk, vk, skBI
 }
 
 func sampleProveInputs() (bw6761fr.Element, [N + 2]bw6761fr.Element, [N + 2]bw6761fr.Element) {

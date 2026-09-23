@@ -3,10 +3,12 @@
 //! All coded FDE variants (VECK+, VECK*, ours) send a codeword of
 //! `m = ceil(beta * ell)` symbols instead of the `ell` file symbols.  Since the
 //! file lives on the multiplicative subgroup `D_ell` and the codeword on the
-//! larger subgroup `D_m'` (`m' = 2^ceil(log2 m)`), and `D_ell <= D_m'`, the code
-//! is a systematic Reed--Solomon code: interpolating the file gives the degree
-//! `< ell` message polynomial `phi`, and evaluating `phi` over `D_m'` produces
-//! the codeword, whose every `(m'/ell)`-th entry is a file symbol.
+//! larger subgroup `D_m'` (`m' = 2^ceil(log2 m)`), interpolating the file gives
+//! the degree `< ell` message polynomial `phi`, and evaluating `phi` over `D_m'`
+//! produces the codeword.  Because `D_ell <= D_m'`, every `(m'/ell)`-th entry of
+//! this full codeword is a file symbol.  Only its first `m` entries are
+//! transmitted, however, and those miss the file symbols at indices `>= m`, so
+//! the transmitted code is a (non-systematic) Reed--Solomon code of length `m`.
 //!
 //! Both halves are FFTs, so this is exactly what `Evaluations::interpolate` and
 //! `DensePolynomial::evaluate_over_domain` do; we time them as the `encode`

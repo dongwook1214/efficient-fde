@@ -10,10 +10,10 @@ up across schemes:
 
 | stage | meaning |
 | ----- | ------- |
-| `encode` | Reed–Solomon expansion `ell -> m = ceil(beta * ell)`.  The file lives on the subgroup `D_ell`, the codeword on `D_m'` with `m' = 2^ceil(log2 m)`; since `D_ell <= D_m'` the code is systematic and both halves are FFTs (`Evaluations::interpolate` and `evaluate_over_domain`).  For base VECK, which does not code, only the interpolation runs. |
+| `encode` | Reed–Solomon expansion `ell -> m = ceil(beta * ell)`.  The file lives on the subgroup `D_ell`, the codeword on `D_m'` with `m' = 2^ceil(log2 m)`; both halves are FFTs (`Evaluations::interpolate` and `evaluate_over_domain`).  The full `m'`-point codeword is systematic (`D_ell <= D_m'`), but only its first `m` points are transmitted, and those do not contain every file symbol, so the transmitted code is not systematic.  For base VECK, which does not code, only the interpolation runs. |
 | `commit` | the KZG commitment `C_phi` to the degree-`(ell-1)` message polynomial. |
 | `encrypt` | whatever the sender applies to **every** transmitted symbol: exponential ElGamal for VECK and VECK+, a Poseidon PRF mask for VECK\* and for us. |
-| `sample` | Fiat–Shamir derivation of the `R` checked positions. |
+| `sample` | Fiat–Shamir derivation of the `R` checked positions, including the one pass that hashes the `m` transmitted symbols into the seed. |
 | `subset` | interpolation of the sampled polynomial `f_S` and its commitment. |
 | `sample_crypto` | per-sample public-key work: range proofs for VECK+, the in-circuit ElGamal ciphertexts for VECK\*, nothing for us.  For base VECK this is the range proofs over the *whole* file. |
 | `kzg_proof` | quotient, its commitment, the opening at `alpha`, and (VECK, VECK+) the DLEQ proof. |
@@ -56,7 +56,7 @@ smallest `R` reaching each target:
 
 Every scheme is measured at every `beta`.
 
-VECK\* at `R = 2384` needs 9,573,767 constraints, against 477,830 for ours.
+VECK\* at `R = 2384` needs 9,573,767 constraints, against 477,208 for ours.
 Groth16 setup there takes tens of minutes and a multi-gigabyte proving key;
 `-compile-only` reports the constraint count without it.
 
@@ -176,17 +176,14 @@ Excluded from every scheme, so the comparison is like-for-like:
 * **Groth16 setup, circuit compilation and CRS serialisation.**  Reported by the
   Go driver as `setup_ms` / `compile_ms` / `crs_bytes`; one-time per circuit.
   CP-Link setup likewise.
-* **Transcript hashing.**  `sample_ms` times only the derivation of the `R` indices
-  from a seed; hashing the `m` ciphertexts that produce that seed is not timed.
-  This is `O(m)` work that VECK+, VECK\* and we would all pay.
 * **The buyer's decryption.**  For VECK and VECK+ this means brute-forcing a
   32-bit discrete log per shard — `8*ell` of them for VECK.  For VECK\* and for us
   the buyer subtracts the PRF stream.
 * **Reed–Solomon decoding**, serialisation, network transfer, peak memory, and the
   settlement contract (adaptor signature, on-chain `Ver_key`).
-* **`C_phi` amortisation.**  In a deployment the file commitment is published once
-  and amortised over all buyers; here it is in `prove_total_ms` for all four
-  schemes equally.
+* **The file commitment `C_phi`.**  It is an input to `Enc`, published once and
+  amortised over all buyers, so `commit_ms` is reported but not summed into
+  `prove_total_ms` (see `PROVE_STAGES` in `scripts/aggregate.py`).
 
 Per-scheme notes:
 
@@ -206,15 +203,19 @@ Per-scheme notes:
   proof binds (the value).  VECK\*'s sampled ciphertexts are never decrypted that
   way: they are inputs to its SNARK, which proves the encryption relation itself,
   so neither the split nor the check has anything to do.  With both removed,
-  VECK\* and our scheme verify in the same time on the same curve — at this layer
-  both do the same two pairing checks, and the difference lives in the SNARK.
+  VECK\* and our scheme do the same two pairing checks at this layer; their KZG
+  verification times still differ because the curves differ (BLS12-377 against
+  BLS12-381 / BW6-761), and the rest of the difference lives in the SNARK.
 * **VECK\*** is charged the same whole-codeword Poseidon mask as we are, using our
   PRF rather than its MiMC; the reference implementation does not benchmark that
-  stage.  Its KZG group is instantiated as BW6-761 rather than its inner
-  BLS12-377, matching the reference benchmark.
-* **The SNARK circuits are untouched.**  `Circuit`, `Define` and the range checks
-  are byte-identical to the upstream sources in all three drivers, so the
-  constraint counts are the originals.  The only edits are benchmark plumbing:
+  stage.  Its KZG layer and sampled ElGamal run on BLS12-377, the inner curve of
+  the two-chain its BW6-761 circuit needs (see the curve table above).
+* **The VECK\* circuit is untouched.**  Its `Circuit`, `Define` and range checks
+  are byte-identical to the upstream source, so its constraint counts are the
+  originals.  Our circuits drop the upstream range check `SK < |Jubjub|` (or the
+  embedded Edwards order on BW6-761), a leftover of in-circuit ElGamal: `SK` is
+  uniform in the scalar field and only enters Poseidon2 and the CP-Link.  The
+  other edits are benchmark plumbing:
   `const N` moved into build-tag-selected `params_r*.go` files, the durations
   already being printed are also stored in a `metrics` struct, `main` parses flags
   and appends a CSV row, and `-cores` replaces the hard-coded `GOMAXPROCS`.
@@ -231,7 +232,7 @@ cd benchmarks/kzg && cargo test --release
 The suite tampers with the quotient commitment, the opening, the opened value, the
 file commitment, a sampled codeword symbol, an ElGamal ciphertext, a shard
 ciphertext and a range proof, and requires each to be rejected.  It also checks
-that the encoding is systematic (file symbols reappear in the codeword at stride
+that the full `m'`-point codeword is systematic (file symbols reappear at stride
 `m'/ell`), that the barycentric Lagrange basis reproduces `f(alpha)` on a
 non-subgroup point set — the DLEQ is unsound otherwise — and that each default
 sample count is the smallest `R` reaching its target `beta`.
